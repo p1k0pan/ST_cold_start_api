@@ -1,7 +1,8 @@
 # pip install openai==1.35.10
-from cmd import PROMPT
 import datetime
 import json
+
+import requests
 import openai
 import time
 import base64
@@ -11,7 +12,6 @@ from pathlib import Path
 import os
 import argparse
 import sys
-from openai import OpenAI
 
 with open('/mnt/workspace/xintong/api_key.txt', 'r') as f:
 
@@ -43,10 +43,11 @@ lang_map = {
 
 def call_api(text, system_prompt):
 
-    response = openai.chat.completions.create(
+
+    payload = {
         # model="模型",
-        model = model_name, # 图文
-        messages=[
+        "model" : model_name, # 图文
+        "messages" : [
             {'role': 'system', 'content': system_prompt},
                 {
                     "role": "user",
@@ -55,8 +56,17 @@ def call_api(text, system_prompt):
                     ],
                 }
         ],
-    )
-    return response.choices[0].message.content
+    }
+
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(BASE_URL, headers=headers, json=payload)
+    response.raise_for_status()
+    response_data =  response.json()
+    return response_data["choices"][0]["message"]["content"]
 
 SYSTEM_PROMPT = """
 You are a professional translator and translation analyst.
