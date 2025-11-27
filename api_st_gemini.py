@@ -42,12 +42,10 @@ lang_map = {
 }
 
 def call_api(text, system_prompt):
-
-
-    payload = {
+    response = openai.chat.completions.create(
         # model="模型",
-        "model" : model_name, # 图文
-        "messages" : [
+        model = model_name, # 图文
+        messages=[
             {'role': 'system', 'content': system_prompt},
                 {
                     "role": "user",
@@ -56,17 +54,8 @@ def call_api(text, system_prompt):
                     ],
                 }
         ],
-    }
-
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    response = requests.post(BASE_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    response_data =  response.json()
-    return response_data["choices"][0]["message"]["content"]
+    )
+    return response.choices[0].message.content
 
 SYSTEM_PROMPT = """
 You are a professional translator and translation analyst.
@@ -134,35 +123,46 @@ Sentence:
 """
 
 
-def process(ref):
-    data = json.load(open(ref, 'r'))
+def process(ref, retries=3, retry_wait=2):
+    data = json.load(open(ref, 'r', encoding="utf-8"))
     print(len(data))
-    sleep_times = []
 
     for item in tqdm.tqdm(data):
         text = item["source_text"]
         tgt_lang = item["target_lang"]
         source_lang = item["source_lang"]
-        prompt = PROMPT.format(src_lang=lang_map[source_lang], tgt_lang=lang_map[tgt_lang], text=text)
 
-        try:
-            outputs = call_api(prompt, SYSTEM_PROMPT)
-            # outputs = prompt
-        except Exception as e:
-            outputs = ""
-            print(f"Error for idx {text}: {e}")
+        prompt = PROMPT.format(
+            src_lang=lang_map[source_lang],
+            tgt_lang=lang_map[tgt_lang],
+            text=text
+        )
+
+        for attempt in range(1, retries + 1):
+            try:
+                outputs = call_api(prompt, SYSTEM_PROMPT)
+                break   # 成功 → 跳出重试循环
+            except Exception as e:
+                print(f"[{text}] 第 {attempt} 次失败：{e}")
+                if attempt < retries:
+                    time.sleep(retry_wait)
+                else:
+                    print(f"[{text}] 已重试 {retries} 次仍失败 → 写入空结果")
+                    outputs = ""
+
         item["mt"] = outputs
-        break
 
     output_path = os.path.join(root, f"{model_name}_translate_cot.json")
     print(f"Saving results to: {output_path}")
-    json.dump(data, open(output_path, 'w'), ensure_ascii=False, indent=4)
+
+    json.dump(data, open(output_path, 'w', encoding="utf-8"), ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
    
     # 使用用户输入的模型名
     model_name = "gemini-2.5-pro-preview-05-06"
+    # model_name = "gpt-5"
     print(f"Using model: {model_name}")
 
     error_file = {}
