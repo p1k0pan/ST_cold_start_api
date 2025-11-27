@@ -161,7 +161,7 @@ def process(ref, retries=3, retry_wait=2):
 if __name__ == '__main__':
    
     # 使用用户输入的模型名
-    model_name = "gemini-2.5-pro-preview-05-06"
+    model_name = "gemini-2.5-pro"
     # model_name = "gpt-5"
     print(f"Using model: {model_name}")
 
