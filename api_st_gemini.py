@@ -161,8 +161,9 @@ def process(ref, retries=3, retry_wait=2):
     print(f"Saving results to: {output_path}")
 
     json.dump(data, open(output_path, 'w', encoding="utf-8"), ensure_ascii=False, indent=4)
-    error_log_path = os.path.join(root, f"{model_name}_{os.path.basename(ref)}_translate_cot_error_log.json")
-    json.dump(err_data, open(error_log_path, 'w'), ensure_ascii=False, indent=4)
+    if len(err_data) > 0:
+        error_log_path = os.path.join(root, f"{model_name}_{os.path.basename(ref)}_translate_cot_error_log.json")
+        json.dump(err_data, open(error_log_path, 'w'), ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
