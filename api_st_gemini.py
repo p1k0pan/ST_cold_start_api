@@ -126,11 +126,13 @@ Sentence:
 def process(ref, retries=3, retry_wait=2):
     data = json.load(open(ref, 'r', encoding="utf-8"))
     print(len(data))
+    err_data = {}
 
     for item in tqdm.tqdm(data):
         text = item["source_text"]
         tgt_lang = item["target_lang"]
         source_lang = item["source_lang"]
+        last_error = None  
 
         prompt = PROMPT.format(
             src_lang=lang_map[source_lang],
@@ -143,19 +145,24 @@ def process(ref, retries=3, retry_wait=2):
                 outputs = call_api(prompt, SYSTEM_PROMPT)
                 break   # 成功 → 跳出重试循环
             except Exception as e:
+                last_error = str(e)  # 记录最后一次错误
                 print(f"[{text}] 第 {attempt} 次失败：{e}")
                 if attempt < retries:
                     time.sleep(retry_wait)
                 else:
                     print(f"[{text}] 已重试 {retries} 次仍失败 → 写入空结果")
                     outputs = ""
+                    # === 记录错误到 error_log.json ===
+                    err_data[text]= last_error
 
         item["mt"] = outputs
 
-    output_path = os.path.join(root, f"{model_name}_translate_cot.json")
+    output_path = os.path.join(root, f"{model_name}_{os.path.basename(ref)}_translate_cot.json")
     print(f"Saving results to: {output_path}")
 
     json.dump(data, open(output_path, 'w', encoding="utf-8"), ensure_ascii=False, indent=4)
+    error_log_path = os.path.join(root, f"{model_name}_{os.path.basename(ref)}_translate_cot_error_log.json")
+    json.dump(err_data, open(error_log_path, 'w'), ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
@@ -173,6 +180,6 @@ if __name__ == '__main__':
     Path(root).mkdir(parents=True, exist_ok=True)
     print("路径保存地址在", root)
 
-    file = "./corpus_cleaned.json"
+    file = "./corpus_cleaned_empty.json"
     print("file ", file)
     process(file)
